@@ -25,6 +25,8 @@
 
 #include "treemenu-widget.h"
 
+#define STR_IS_EMPTY(str) ((str) == NULL || *(str) == '\0')
+
 GtkWidget *tree_view;
 
 /*
@@ -33,6 +35,7 @@ GtkWidget *tree_view;
 enum tree_columns {
 	L_ICON_NAME,
 	L_NODE_DATA,
+	L_TOOLTIP,
 	L_VISIBILE,
 	N_L_COLUMNS
 };
@@ -52,7 +55,7 @@ garcon_fill_tree_view (GtkTreeModel *model, GtkTreeIter *p_iter, GarconMenu *gar
 
 	elements = garcon_menu_get_elements (garcon_menu);
 	for (li = elements; li != NULL; li = li->next) {
-		if (GARCON_IS_MENU_ITEM (li->data)) {
+		if (GARCON_IS_MENU_ITEM (li->data) && p_iter != NULL) {
 			/* skip invisible items */
 			if (!garcon_menu_element_get_visible (li->data))
 				continue;
@@ -64,18 +67,21 @@ garcon_fill_tree_view (GtkTreeModel *model, GtkTreeIter *p_iter, GarconMenu *gar
 
 			icon_name = NULL;
 			icon_name = garcon_menu_element_get_icon_name (li->data);
-			if (icon_name == NULL)
+			if (STR_IS_EMPTY (icon_name))
 				icon_name = "applications-other";
 
 			if (G_UNLIKELY (name == NULL))
 				continue;
 
+			comment = garcon_menu_item_get_comment (li->data);
+
 			gtk_tree_store_append (GTK_TREE_STORE(model), &iter, p_iter);
 			gtk_tree_store_set (GTK_TREE_STORE(model), &iter,
-					            L_ICON_NAME, icon_name,
-					            L_NODE_DATA, name,
-					            L_VISIBILE, TRUE,
-					            -1);
+			                    L_ICON_NAME, icon_name,
+			                    L_NODE_DATA, name,
+			                    L_TOOLTIP, comment,
+			                    L_VISIBILE, TRUE,
+			                    -1);
 
 			has_children = TRUE;
 		}
@@ -96,10 +102,11 @@ garcon_fill_tree_view (GtkTreeModel *model, GtkTreeIter *p_iter, GarconMenu *gar
 
 			gtk_tree_store_append (GTK_TREE_STORE(model), &iter, p_iter);
 			gtk_tree_store_set (GTK_TREE_STORE(model), &iter,
-					            L_ICON_NAME, icon_name,
-					            L_NODE_DATA, name,
-					            L_VISIBILE, TRUE,
-					            -1);
+			                    L_ICON_NAME, icon_name,
+			                    L_NODE_DATA, name,
+			                    L_TOOLTIP, name,
+			                    L_VISIBILE, TRUE,
+			                    -1);
 
 			garcon_fill_tree_view (model, &iter, li->data);
 		}
@@ -137,8 +144,9 @@ garcon_tree_view_new (void)
 	 * Tree store.
 	 */
 	store = gtk_tree_store_new (N_L_COLUMNS,
-	                            G_TYPE_STRING, /* Pixbuf */
-	                            G_TYPE_STRING,   /* Node */
+	                            G_TYPE_STRING,   /* Icon name */
+	                            G_TYPE_STRING,   /* Name */
+	                            G_TYPE_STRING,   /* Tooltip */
 	                            G_TYPE_BOOLEAN); /* Row visibility */
 	/*
 	 * Tree view
@@ -170,6 +178,7 @@ garcon_tree_view_new (void)
 	gtk_tree_view_append_column (GTK_TREE_VIEW(tree_view), column);
 	g_object_unref (filter_tree);
 
+	gtk_tree_view_set_tooltip_column(GTK_TREE_VIEW(tree_view), L_TOOLTIP);
 	/*
 	 * Pack.
 	 */
