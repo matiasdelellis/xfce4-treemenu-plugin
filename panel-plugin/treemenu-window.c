@@ -26,10 +26,58 @@
 #include "garcon-treeview.h"
 #include "treemenu-window.h"
 
+static void
+gtk_search_entry_icon_pressed_cb (GtkEntry       *entry,
+                                  gint            position,
+                                  GdkEventButton *event,
+                                  gpointer       *data)
+{
+	if (position == GTK_ENTRY_ICON_SECONDARY) {
+		gtk_entry_set_text (entry, "");
+		gtk_widget_grab_focus(GTK_WIDGET(entry));
+
+		g_signal_emit_by_name(G_OBJECT(entry), "activate");
+	}
+}
+
+static void
+gtk_search_entry_changed_cb (GtkEditable *editable, gpointer user_data)
+{
+	GtkEntry *entry = GTK_ENTRY (editable);
+
+	gboolean has_text = gtk_entry_get_text_length (entry) > 0;
+	gtk_entry_set_icon_sensitive (entry, GTK_ENTRY_ICON_SECONDARY, has_text);
+}
+
+static GtkWidget *
+gtk_searck_entry_new (void)
+{
+	GtkWidget *search_entry;
+
+	search_entry = gtk_entry_new ();
+
+	gtk_entry_set_icon_from_icon_name (GTK_ENTRY(search_entry),
+	                                   GTK_ENTRY_ICON_PRIMARY, "edit-find");
+	gtk_entry_set_icon_from_icon_name (GTK_ENTRY(search_entry),
+	                                   GTK_ENTRY_ICON_SECONDARY, "edit-clear");
+
+	gtk_entry_set_icon_sensitive (GTK_ENTRY(search_entry),
+	                              GTK_ENTRY_ICON_SECONDARY, FALSE);
+
+	g_signal_connect (search_entry, "icon-press",
+	                  G_CALLBACK (gtk_search_entry_icon_pressed_cb), NULL);
+	g_signal_connect (search_entry, "changed",
+	                  G_CALLBACK (gtk_search_entry_changed_cb), NULL);
+
+	return search_entry;
+}
+
 GtkWidget *
 garcon_treemenu_window_new (void)
 {
 	GtkWidget *window;
+	GtkWidget *vbox, *hbox;
+	GtkWidget *entry, *button;
 	GtkWidget *treeview;
 	GtkWidget *tree_scroll;
 	GtkTreeModel *model, *filter_model;
@@ -40,6 +88,10 @@ garcon_treemenu_window_new (void)
 	gtk_window_set_title (GTK_WINDOW (window), "Test menu.");
 	g_signal_connect (window, "destroy", G_CALLBACK (gtk_main_quit), NULL);
 
+	/* Vertical box */
+	vbox = gtk_vbox_new(FALSE, 2);
+	gtk_container_add (GTK_CONTAINER(window), vbox);
+
 	/* Container */
 	tree_scroll = gtk_scrolled_window_new (NULL, NULL);
 	gtk_scrolled_window_set_policy (GTK_SCROLLED_WINDOW(tree_scroll),
@@ -49,7 +101,7 @@ garcon_treemenu_window_new (void)
 	                                     GTK_SHADOW_IN);
 	gtk_container_set_border_width (GTK_CONTAINER(tree_scroll), 2);
 
-	gtk_container_add (GTK_CONTAINER(window), tree_scroll);
+	gtk_box_pack_start (GTK_BOX(vbox), tree_scroll, TRUE, TRUE, 2);
 
 	/* Garcon treeview */
 	treeview = garcon_tree_view_new ();
@@ -63,6 +115,16 @@ garcon_treemenu_window_new (void)
 	garcon_fill_tree_view (model, NULL, menu);
 
 	gtk_container_add (GTK_CONTAINER(tree_scroll), treeview);
+
+	/* Horitontal box */
+	hbox = gtk_hbox_new(FALSE, 2);
+	gtk_box_pack_start (GTK_BOX(vbox), hbox, FALSE, FALSE, 2);
+
+	entry = gtk_searck_entry_new ();
+	gtk_box_pack_start (GTK_BOX(hbox), entry, TRUE, TRUE, 2);
+
+	button = gtk_button_new_with_label ("Salir");
+	gtk_box_pack_start (GTK_BOX(hbox), button, FALSE, FALSE, 2);
 
 	return window;
 }
