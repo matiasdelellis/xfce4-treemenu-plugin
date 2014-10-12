@@ -16,10 +16,11 @@
  *  Foundation, Inc., 51 Franklin Street, Suite 500, Boston, MA 02110-1335, USA.
  */
 
-#ifndef __TREEMENU_WIDGET_H__
-#define __TREEMENU_WIDGET_H__
+#ifndef __GARCON_CNP_H__
+#define __GARCON_CMP_H__
 
-void
-treemenu_plugin_show_test_dialog (void);
+#include <garcon/garcon.h>
 
-#endif /* !__TREEMENU_WIDGET_H__ */
+void garcon_gtk_menu_item_activate (GarconMenuItem *item);
+
+#endif /* !__GARCON_CNP_H__ */

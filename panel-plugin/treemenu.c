@@ -3,7 +3,7 @@
 #endif
 
 #include <gtk/gtk.h>
-#include "treemenu-widget.h"
+#include "treemenu-window.h"
 
 int
 main (int   argc,

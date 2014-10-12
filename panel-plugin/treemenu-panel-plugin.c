@@ -20,7 +20,7 @@
 #include <config.h>
 #endif
 
-#include "treemenu-widget.h"
+#include "treemenu-window.h"
 #include "treemenu-panel-plugin.h"
 
 /* prototypes */

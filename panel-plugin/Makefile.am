@@ -11,8 +11,12 @@ AM_CPPFLAGS = \
 bin_PROGRAMS = treemenu
 
 treemenu_SOURCES = \
-	treemenu-widget.c \
-	treemenu-widget.h \
+	treemenu-window.c \
+	treemenu-window.h \
+	garcon-treeview.c \
+	garcon-treeview.h \
+	garcon-cnp.c \
+	garcon-cnp.h \
 	treemenu.c
 
 treemenu_CFLAGS = \
@@ -43,8 +47,12 @@ plugindir = \
 libtreemenu_la_SOURCES = \
 	treemenu-panel-plugin.c \
 	treemenu-panel-plugin.h \
-	treemenu-widget.c \
-	treemenu-widget.h
+	treemenu-window.c \
+	treemenu-window.h \
+	garcon-treeview.c \
+	garcon-treeview.h \
+	garcon-cnp.c \
+	garcon-cnp.h
 
 libtreemenu_la_CFLAGS = \
 	$(DBUS_GLIB_CFLAGS) \

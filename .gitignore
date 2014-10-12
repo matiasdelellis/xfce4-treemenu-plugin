@@ -27,3 +27,4 @@ po/.intltool-merge-cache
 po/Makefile.in.in
 po/POTFILES
 stamp-*
+/panel-plugin/treemenu
