@@ -22,6 +22,8 @@
 
 #include <gtk/gtk.h>
 #include <garcon/garcon.h>
+#include <libxfce4util/libxfce4util.h>
+#include <libxfce4ui/libxfce4ui.h>
 
 #include "treemenu-widget.h"
 
@@ -36,9 +38,119 @@ enum tree_columns {
 	L_ICON_NAME,
 	L_NODE_DATA,
 	L_TOOLTIP,
+	L_GARCON_ITEM,
 	L_VISIBILE,
 	N_L_COLUMNS
 };
+
+static void
+garcon_gtk_menu_append_quoted (GString     *string,
+                               const gchar *unquoted)
+{
+	gchar *quoted;
+
+	quoted = g_shell_quote (unquoted);
+	g_string_append (string, quoted);
+	g_free (quoted);
+}
+
+static void
+garcon_gtk_menu_item_activate (GarconMenuItem *item)
+{
+	GString      *string;
+	const gchar  *command;
+	const gchar  *p;
+	const gchar  *tmp;
+	gchar       **argv;
+	gboolean      result = FALSE;
+	gchar        *uri;
+	GError       *error = NULL;
+
+	g_return_if_fail (GARCON_IS_MENU_ITEM (item));
+
+	command = garcon_menu_item_get_command (item);
+	if (STR_IS_EMPTY (command))
+		return;
+
+	string = g_string_sized_new (100);
+
+	if (garcon_menu_item_requires_terminal (item))
+	g_string_append (string, "exo-open --launch TerminalEmulator ");
+
+	/* expand the field codes */
+	for (p = command; *p != '\0'; ++p) {
+		if (G_UNLIKELY (p[0] == '%' && p[1] != '\0')) {
+			switch (*++p) {
+				case 'f': case 'F':
+				case 'u': case 'U':
+					/* TODO for dnd, not a regression, xfdesktop never had this */
+					break;
+				case 'i':
+					tmp = garcon_menu_item_get_icon_name (item);
+					if (!STR_IS_EMPTY (tmp)) {
+						g_string_append (string, "--icon ");
+						garcon_gtk_menu_append_quoted (string, tmp);
+					}
+					break;
+				case 'c':
+					tmp = garcon_menu_item_get_name (item);
+					if (!STR_IS_EMPTY (tmp))
+						garcon_gtk_menu_append_quoted (string, tmp);
+					break;
+				case 'k':
+					uri = garcon_menu_item_get_uri (item);
+					if (!STR_IS_EMPTY (uri))
+						garcon_gtk_menu_append_quoted (string, uri);
+					g_free (uri);
+					break;
+				case '%':
+					g_string_append_c (string, '%');
+					break;
+			}
+		}
+		else {
+			g_string_append_c (string, *p);
+		}
+	}
+
+	/* parse and spawn command */
+	if (g_shell_parse_argv (string->str, NULL, &argv, &error)) {
+		result = xfce_spawn_on_screen (NULL,
+		                               garcon_menu_item_get_path (item),
+		                               argv, NULL, G_SPAWN_SEARCH_PATH,
+		                               garcon_menu_item_supports_startup_notification (item),
+		                               gtk_get_current_event_time (),
+		                               garcon_menu_item_get_icon_name (item),
+		                               &error);
+		g_strfreev (argv);
+    }
+
+	if (G_UNLIKELY (!result)) {
+		xfce_dialog_show_error (NULL, error, _("Failed to execute command \"%s\"."), command);
+		g_error_free (error);
+	}
+
+	g_string_free (string, TRUE);
+}
+
+static void
+garcon_tree_view_row_activated_cb (GtkTreeView       *treeview,
+                                   GtkTreePath       *path,
+                                   GtkTreeViewColumn *column,
+                                   gpointer           user_data)
+{
+	GtkTreeModel *model;
+	GtkTreeIter iter;
+	GarconMenuItem *item;
+
+	model = gtk_tree_view_get_model (GTK_TREE_VIEW(treeview));
+
+	gtk_tree_model_get_iter (model, &iter, path);
+	gtk_tree_model_get (model, &iter, L_GARCON_ITEM, &item, -1);
+
+	if (item)
+		garcon_gtk_menu_item_activate (item);
+}
 
 static gboolean
 garcon_fill_tree_view (GtkTreeModel *model, GtkTreeIter *p_iter, GarconMenu *garcon_menu)
@@ -80,6 +192,7 @@ garcon_fill_tree_view (GtkTreeModel *model, GtkTreeIter *p_iter, GarconMenu *gar
 			                    L_ICON_NAME, icon_name,
 			                    L_NODE_DATA, name,
 			                    L_TOOLTIP, comment,
+			                    L_GARCON_ITEM, li->data,
 			                    L_VISIBILE, TRUE,
 			                    -1);
 
@@ -147,6 +260,7 @@ garcon_tree_view_new (void)
 	                            G_TYPE_STRING,   /* Icon name */
 	                            G_TYPE_STRING,   /* Name */
 	                            G_TYPE_STRING,   /* Tooltip */
+	                            G_TYPE_OBJECT,   /* Garcon item */
 	                            G_TYPE_BOOLEAN); /* Row visibility */
 	/*
 	 * Tree view
@@ -179,6 +293,10 @@ garcon_tree_view_new (void)
 	g_object_unref (filter_tree);
 
 	gtk_tree_view_set_tooltip_column(GTK_TREE_VIEW(tree_view), L_TOOLTIP);
+
+	g_signal_connect (G_OBJECT(tree_view), "row-activated",
+	                  G_CALLBACK(garcon_tree_view_row_activated_cb), NULL);
+
 	/*
 	 * Pack.
 	 */
