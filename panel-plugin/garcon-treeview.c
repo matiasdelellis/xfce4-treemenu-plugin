@@ -42,6 +42,131 @@ enum tree_columns {
 	N_L_COLUMNS
 };
 
+static gboolean
+garcon_treeview_cmp (const gchar *haystack, const gchar *needle)
+{
+	gchar *haystack_down = NULL;
+	gchar *needle_down = NULL;
+	gboolean math = FALSE;
+
+	haystack_down = g_ascii_strdown (haystack, -1);
+	needle_down = g_ascii_strdown (needle, -1);
+
+	math = (g_strrstr(haystack_down, needle_down) != NULL);
+
+	g_free (haystack_down);
+	g_free (needle_down);
+
+	return math;
+}
+
+static void
+garcon_tree_view_set_visible_parents (GtkTreeModel *model, GtkTreeIter *c_iter)
+{
+	GtkTreeIter t_iter, parent;
+
+	t_iter = *c_iter;
+
+	while (gtk_tree_model_iter_parent (model, &parent, &t_iter)) {
+		gtk_tree_store_set (GTK_TREE_STORE(model), &parent,
+		                    L_VISIBILE, TRUE, -1);
+		t_iter = parent;
+	}
+}
+
+static gboolean
+garcon_treeview_any_parent_visible (GtkTreeModel *model,
+                                    GtkTreeIter  *iter,
+                                    const gchar  *needle)
+{
+	GtkTreeIter t_iter, parent;
+	gchar *name = NULL;
+	gboolean visible = FALSE;
+
+	t_iter = *iter;
+
+	while (gtk_tree_model_iter_parent (model, &parent, &t_iter)) {
+		gtk_tree_model_get (model, &parent, L_NODE_DATA, &name, -1);
+		visible = garcon_treeview_cmp (name, needle);
+		g_free (name);
+
+		if (visible)
+			return TRUE;
+
+		t_iter = parent;
+	}
+
+	return FALSE;
+}
+
+static gboolean
+garcon_treeview_filter_tree_func (GtkTreeModel *model,
+                                  GtkTreePath  *path,
+                                  GtkTreeIter  *iter,
+                                  gpointer      data)
+{
+	gboolean visible = FALSE;
+	const gchar *name = NULL;
+	const gchar *needle = data;
+
+	gtk_tree_model_get (model, iter, L_NODE_DATA, &name, -1);
+
+	/* Compare name */
+	visible = garcon_treeview_cmp (name, needle);
+
+	/* Check if any parent match. */
+	if (!visible)
+		visible = garcon_treeview_any_parent_visible (model, iter, needle);
+
+	gtk_tree_store_set (GTK_TREE_STORE(model), iter,
+	                    L_VISIBILE, visible, -1);
+
+	if (visible)
+		garcon_tree_view_set_visible_parents (model, iter);
+
+	return FALSE;
+}
+
+static gboolean
+_garcon_tree_view_set_all_visible (GtkTreeModel *model,
+                                   GtkTreePath  *path,
+                                   GtkTreeIter  *iter,
+                                   gpointer      data)
+{
+	gtk_tree_store_set (GTK_TREE_STORE(model), iter,
+	                    L_VISIBILE, TRUE, -1);
+	return FALSE;
+}
+
+static void
+garcon_tree_view_set_all_visible (GtkTreeModel *model)
+{
+	gtk_tree_model_foreach (GTK_TREE_MODEL(model),
+	                        _garcon_tree_view_set_all_visible,
+	                        NULL);
+}
+
+void
+garcon_treeview_refilter (GtkWidget *treeview, const gchar *needle)
+{
+	GtkTreeModel *filter_model, *model;
+
+	filter_model = gtk_tree_view_get_model (GTK_TREE_VIEW(treeview));
+	model = gtk_tree_model_filter_get_model (GTK_TREE_MODEL_FILTER(filter_model));
+
+	if (STR_IS_EMPTY (needle)) {
+		garcon_tree_view_set_all_visible (model);
+		gtk_tree_view_collapse_all (GTK_TREE_VIEW(treeview));
+	}
+	else {
+		gtk_tree_model_foreach (GTK_TREE_MODEL(model),
+		                        garcon_treeview_filter_tree_func,
+		                        (gpointer) needle);
+
+		gtk_tree_view_expand_all (GTK_TREE_VIEW(treeview));
+	}
+}
+
 static void
 garcon_tree_view_row_activated_cb (GtkTreeView       *treeview,
                                    GtkTreePath       *path,
@@ -57,8 +182,11 @@ garcon_tree_view_row_activated_cb (GtkTreeView       *treeview,
 	gtk_tree_model_get_iter (model, &iter, path);
 	gtk_tree_model_get (model, &iter, L_GARCON_ITEM, &item, -1);
 
-	if (item)
+	if (item) {
 		garcon_gtk_menu_item_activate (item);
+		g_object_unref (item);
+	}
+
 }
 
 gboolean
@@ -70,7 +198,6 @@ garcon_fill_tree_view (GtkTreeModel *model,
 	const gchar         *name, *icon_name;
 	const gchar         *comment;
 	gboolean             has_children = FALSE;
-	const gchar         *command;
 	GarconMenuDirectory *directory;
 	GtkTreeIter          iter;
 

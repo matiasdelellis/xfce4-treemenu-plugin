@@ -21,10 +21,13 @@
 
 #include <gtk/gtk.h>
 
-gboolean   garcon_fill_tree_view (GtkTreeModel *model,
-                                  GtkTreeIter  *p_iter,
-                                  GarconMenu   *garcon_menu);
+void       garcon_treeview_refilter (GtkWidget   *treeview,
+                                     const gchar *filter);
 
-GtkWidget *garcon_tree_view_new   (void);
+gboolean   garcon_fill_tree_view    (GtkTreeModel *model,
+                                     GtkTreeIter  *p_iter,
+                                     GarconMenu   *garcon_menu);
+
+GtkWidget *garcon_tree_view_new     (void);
 
 #endif /* !__GARCON_TREE_VIEW_H__ */

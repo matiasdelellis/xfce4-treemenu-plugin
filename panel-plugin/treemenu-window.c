@@ -26,6 +26,25 @@
 #include "garcon-treeview.h"
 #include "treemenu-window.h"
 
+/*
+ * GtkSearchEntry:
+ */
+static gboolean
+gtk_search_entry_changed_handler (GtkEntry  *entry,
+                                  GtkWidget *treeview)
+{
+	garcon_treeview_refilter (treeview, gtk_entry_get_text (entry));
+
+	return FALSE;
+}
+
+static gboolean
+gtk_search_entry_activated_handler (GtkEntry  *entry,
+                                    GtkWidget *treeview)
+{
+	return FALSE;
+}
+
 static void
 gtk_search_entry_icon_pressed_cb (GtkEntry       *entry,
                                   gint            position,
@@ -50,7 +69,7 @@ gtk_search_entry_changed_cb (GtkEditable *editable, gpointer user_data)
 }
 
 static GtkWidget *
-gtk_searck_entry_new (void)
+gtk_search_entry_new (void)
 {
 	GtkWidget *search_entry;
 
@@ -72,6 +91,9 @@ gtk_searck_entry_new (void)
 	return search_entry;
 }
 
+/*
+ * Dialog
+ */
 GtkWidget *
 garcon_treemenu_window_new (void)
 {
@@ -120,7 +142,11 @@ garcon_treemenu_window_new (void)
 	hbox = gtk_hbox_new(FALSE, 2);
 	gtk_box_pack_start (GTK_BOX(vbox), hbox, FALSE, FALSE, 2);
 
-	entry = gtk_searck_entry_new ();
+	entry = gtk_search_entry_new ();
+	g_signal_connect (G_OBJECT(entry), "changed",
+	                  G_CALLBACK(gtk_search_entry_changed_handler), treeview);
+	g_signal_connect (G_OBJECT(entry), "activate",
+	                  G_CALLBACK(gtk_search_entry_activated_handler), treeview);
 	gtk_box_pack_start (GTK_BOX(hbox), entry, TRUE, TRUE, 2);
 
 	button = gtk_button_new_with_label ("Salir");
