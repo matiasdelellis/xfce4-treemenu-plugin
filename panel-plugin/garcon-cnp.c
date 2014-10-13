@@ -29,6 +29,34 @@
 
 #define STR_IS_EMPTY(str) ((str) == NULL || *(str) == '\0')
 
+void
+garcon_lauch_command (const gchar  *command,
+                      const gchar  *path,
+                      gboolean      startup_notification,
+                      const gchar  *icon_name)
+{
+	gboolean result = FALSE;
+	gchar   **argv = NULL;
+	GError   *error = NULL;
+
+	/* parse and spawn command */
+	if (g_shell_parse_argv (command, NULL, &argv, &error)) {
+		result = xfce_spawn_on_screen (NULL,
+		                               path,
+		                               argv, NULL, G_SPAWN_SEARCH_PATH,
+		                               startup_notification,
+		                               gtk_get_current_event_time (),
+		                               icon_name,
+		                               &error);
+		g_strfreev (argv);
+	}
+
+	if (G_UNLIKELY (!result)) {
+		xfce_dialog_show_error (NULL, error, _("Failed to execute command \"%s\"."), command);
+		g_error_free (error);
+	}
+}
+
 static void
 garcon_gtk_menu_append_quoted (GString     *string,
                                const gchar *unquoted)
@@ -47,10 +75,7 @@ garcon_gtk_menu_item_activate (GarconMenuItem *item)
 	const gchar  *command;
 	const gchar  *p;
 	const gchar  *tmp;
-	gchar       **argv;
-	gboolean      result = FALSE;
 	gchar        *uri;
-	GError       *error = NULL;
 
 	g_return_if_fail (GARCON_IS_MENU_ITEM (item));
 
@@ -61,7 +86,7 @@ garcon_gtk_menu_item_activate (GarconMenuItem *item)
 	string = g_string_sized_new (100);
 
 	if (garcon_menu_item_requires_terminal (item))
-	g_string_append (string, "exo-open --launch TerminalEmulator ");
+		g_string_append (string, "exo-open --launch TerminalEmulator ");
 
 	/* expand the field codes */
 	for (p = command; *p != '\0'; ++p) {
@@ -99,22 +124,11 @@ garcon_gtk_menu_item_activate (GarconMenuItem *item)
 		}
 	}
 
-	/* parse and spawn command */
-	if (g_shell_parse_argv (string->str, NULL, &argv, &error)) {
-		result = xfce_spawn_on_screen (NULL,
-		                               garcon_menu_item_get_path (item),
-		                               argv, NULL, G_SPAWN_SEARCH_PATH,
-		                               garcon_menu_item_supports_startup_notification (item),
-		                               gtk_get_current_event_time (),
-		                               garcon_menu_item_get_icon_name (item),
-		                               &error);
-		g_strfreev (argv);
-	}
+	garcon_lauch_command (string->str,
+	                      garcon_menu_item_get_path (item),
+	                      garcon_menu_item_supports_startup_notification (item),
+	                      garcon_menu_item_get_icon_name (item));
 
-	if (G_UNLIKELY (!result)) {
-		xfce_dialog_show_error (NULL, error, _("Failed to execute command \"%s\"."), command);
-		g_error_free (error);
-	}
 
 	g_string_free (string, TRUE);
 }

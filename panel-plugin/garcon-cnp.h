@@ -21,6 +21,12 @@
 
 #include <garcon/garcon.h>
 
+void
+garcon_lauch_command (const gchar  *command,
+                      const gchar  *path,
+                      gboolean      startup_notification,
+                      const gchar  *icon_name);
+
 void garcon_gtk_menu_item_activate (GarconMenuItem *item);
 
 #endif /* !__GARCON_CNP_H__ */

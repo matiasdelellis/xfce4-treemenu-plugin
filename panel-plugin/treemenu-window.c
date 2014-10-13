@@ -24,6 +24,8 @@
 #include <garcon/garcon.h>
 
 #include "garcon-treeview.h"
+#include "garcon-cnp.h"
+
 #include "treemenu-window.h"
 
 /*
@@ -92,6 +94,18 @@ gtk_search_entry_new (void)
 }
 
 /*
+ * Quit button
+ */
+static void
+quit_button_activated_handler (GtkButton *widget,
+                               gpointer   user_data)
+{
+	garcon_lauch_command ("xfce4-session-logout",
+	                      NULL, TRUE,
+	                      "system-log-out");
+}
+
+/*
  * Dialog
  */
 GtkWidget *
@@ -150,6 +164,8 @@ garcon_treemenu_window_new (void)
 	gtk_box_pack_start (GTK_BOX(hbox), entry, TRUE, TRUE, 2);
 
 	button = gtk_button_new_with_label ("Salir");
+	g_signal_connect (G_OBJECT(button), "clicked",
+	                  G_CALLBACK(quit_button_activated_handler), NULL);
 	gtk_box_pack_start (GTK_BOX(hbox), button, FALSE, FALSE, 2);
 
 	return window;
