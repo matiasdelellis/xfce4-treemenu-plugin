@@ -29,6 +29,79 @@
 #include "treemenu-window.h"
 
 /*
+ * Whisker menu Resizer widget.
+ */
+
+static gboolean
+whisker_resizer_on_button_press_event (GtkWidget      *widget,
+                                       GdkEventButton *event,
+                                       GtkWidget      *window)
+{
+	gtk_window_begin_resize_drag (GTK_WINDOW(window),
+	                              GDK_WINDOW_EDGE_NORTH_EAST,
+	                              event->button,
+	                              event->x_root,
+	                              event->y_root,
+	                              0);
+	return TRUE;
+}
+
+static gboolean
+whisker_resizer_on_enter_notify_event (GtkWidget      *widget,
+                                       GdkEventButton *event,
+                                       gpointer        data)
+{
+	GdkWindow *window;
+	GdkCursor *cursor;
+
+	gtk_widget_set_state (widget, GTK_STATE_PRELIGHT);
+
+	cursor = gdk_cursor_new_for_display (gtk_widget_get_display(GTK_WIDGET(widget)), GDK_TOP_RIGHT_CORNER);
+	window = gtk_widget_get_window(widget);
+	gdk_window_set_cursor (window, cursor);
+
+	return FALSE;
+}
+
+static gboolean
+whisker_resizer_on_leave_notify_event (GtkWidget *widget,
+                                       GdkEvent  *event)
+{
+	GdkWindow* window;
+	gtk_widget_set_state (widget, GTK_STATE_NORMAL);
+	
+	window = gtk_widget_get_window (widget);
+	gdk_window_set_cursor (window, NULL);
+
+	return FALSE;
+}
+
+static GtkWidget *
+whisker_resizer_new (GtkWidget *window)
+{
+	GtkWidget *alignment, *drawing;
+
+	alignment = gtk_alignment_new (1.0, 0.5, 0.0, 0.0);
+
+	drawing  = gtk_drawing_area_new ();
+	gtk_widget_set_size_request (drawing, 5, 5);
+	gtk_widget_add_events (drawing, GDK_BUTTON_PRESS_MASK | GDK_ENTER_NOTIFY_MASK | GDK_LEAVE_NOTIFY_MASK);
+
+	gtk_container_add (GTK_CONTAINER(alignment), drawing);
+
+	g_signal_connect (drawing, "button-press-event",
+	                  G_CALLBACK(whisker_resizer_on_button_press_event), window);
+	g_signal_connect (drawing, "enter-notify-event",
+	                  G_CALLBACK(whisker_resizer_on_enter_notify_event), window);
+	g_signal_connect (drawing, "leave-notify-event",
+	                  G_CALLBACK(whisker_resizer_on_leave_notify_event), window);
+	//g_signal_connect (drawing, "expose-event",
+	//                  G_CALLBACK(resizer_on_expose_event), alignment);
+
+	return alignment;
+}
+
+/*
  * GtkSearchEntry:
  */
 static gboolean
@@ -114,6 +187,7 @@ garcon_treemenu_window_new (void)
 	GtkWidget *window;
 	GtkWidget *vbox, *hbox;
 	GtkWidget *entry, *button;
+	GtkWidget *resizer;
 	GtkWidget *treeview;
 	GtkWidget *tree_scroll;
 	GtkTreeModel *model, *filter_model;
@@ -121,12 +195,24 @@ garcon_treemenu_window_new (void)
 
 	/* Window */
 	window = gtk_window_new (GTK_WINDOW_TOPLEVEL);
-	gtk_window_set_title (GTK_WINDOW (window), "Test menu.");
+
+	gtk_window_set_title (GTK_WINDOW (window), "xfce4-treemenu-plugin");
+	gtk_window_set_modal (GTK_WINDOW (window), TRUE);
+	gtk_window_set_decorated (GTK_WINDOW (window), FALSE);
+	gtk_window_set_skip_taskbar_hint (GTK_WINDOW (window), TRUE);
+	gtk_window_set_skip_pager_hint (GTK_WINDOW (window), TRUE);
+	gtk_window_set_type_hint (GTK_WINDOW (window), GDK_WINDOW_TYPE_HINT_DIALOG);
+	gtk_window_stick (GTK_WINDOW (window));
+	gtk_widget_add_events (GTK_WIDGET(window), GDK_BUTTON_PRESS_MASK | GDK_LEAVE_NOTIFY_MASK | GDK_STRUCTURE_MASK);
+
 	g_signal_connect (window, "destroy", G_CALLBACK (gtk_main_quit), NULL);
 
 	/* Vertical box */
 	vbox = gtk_vbox_new(FALSE, 2);
 	gtk_container_add (GTK_CONTAINER(window), vbox);
+
+	resizer = whisker_resizer_new (window);
+	gtk_box_pack_start (GTK_BOX(vbox), resizer, FALSE, FALSE, 0);
 
 	/* Container */
 	tree_scroll = gtk_scrolled_window_new (NULL, NULL);
